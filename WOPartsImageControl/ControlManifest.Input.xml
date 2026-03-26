@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest>
+  <control namespace="WOPartsImage"
+           constructor="WOPartsImageControl"
+           version="1.0.1"
+           display-name-key="WO Parts Image"
+           description-key="Identify parts from photos and add them to a Work Order"
+           control-type="standard"
+           api-version="1.2">
+
+    <external-service-usage enabled="true">
+      <domain>api.anthropic.com</domain>
+    </external-service-usage>
+
+    <property name="boundField"
+              display-name-key="Bound Field"
+              description-key="Bind to any text field on the Work Order form"
+              of-type="SingleLine.Text"
+              usage="bound"
+              required="false" />
+
+    <property name="apiKey"
+              display-name-key="Claude API Key"
+              description-key="Anthropic API key for image identification"
+              of-type="Multiple"
+              usage="input"
+              required="false" />
+
+    <resources>
+      <code path="index.ts" order="1" />
+    </resources>
+
+    <feature-usage>
+      <uses-feature name="WebAPI" required="true" />
+    </feature-usage>
+
+  </control>
+</manifest>
