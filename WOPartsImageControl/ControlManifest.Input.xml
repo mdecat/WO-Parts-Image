@@ -2,7 +2,7 @@
 <manifest>
   <control namespace="WOPartsImage"
            constructor="WOPartsImageControl"
-           version="1.0.1"
+           version="1.0.3"
            display-name-key="WO Parts Image"
            description-key="Identify parts from photos and add them to a Work Order"
            control-type="standard"

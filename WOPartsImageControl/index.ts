@@ -1,7 +1,7 @@
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-type ControlState = "capture" | "analyzing" | "results" | "confirm" | "error";
+type ControlState = "capture" | "analyzing" | "results" | "create" | "confirm" | "error";
 
 interface PartIdentification {
     partType: string;
@@ -257,6 +257,43 @@ const INLINE_STYLES = `
   margin-bottom: 16px;
   word-break: break-word;
 }
+
+/* ── Create product form ── */
+.wpi-create-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin-bottom: 14px;
+}
+.wpi-form-group {
+  margin-bottom: 12px;
+}
+.wpi-form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8e8e93;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+}
+.wpi-form-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1.5px solid #d1d1d6;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d1d1f;
+  font-family: inherit;
+  transition: border-color .2s;
+  box-sizing: border-box;
+}
+.wpi-form-input:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 3px rgba(0,120,212,.12);
+}
 `;
 
 // ─── Control Implementation ─────────────────────────────────────────────────
@@ -338,6 +375,7 @@ export class WOPartsImageControl implements ComponentFramework.StandardControl<I
             case "capture":    this.renderCapture(root); break;
             case "analyzing":  this.renderAnalyzing(root); break;
             case "results":    this.renderResults(root); break;
+            case "create":     this.renderCreateProduct(root); break;
             case "confirm":    this.renderConfirm(root); break;
             case "error":      this.renderError(root); break;
         }
@@ -509,6 +547,17 @@ export class WOPartsImageControl implements ComponentFramework.StandardControl<I
             actions.appendChild(addBtn);
         }
 
+        if (this._matches.length === 0) {
+            const createBtn = document.createElement("button");
+            createBtn.className = "wpi-btn-primary";
+            createBtn.textContent = "Create New Product";
+            createBtn.addEventListener("click", () => {
+                this._state = "create";
+                this.render();
+            });
+            actions.appendChild(createBtn);
+        }
+
         root.appendChild(actions);
     }
 
@@ -644,8 +693,7 @@ If you cannot identify the part, still return the JSON with your best guess for 
             this.render();
 
         } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.showError(`Identification failed: ${msg}`);
+            this.showError(`Identification failed: ${this.formatError(err)}`);
         }
     }
 
@@ -747,8 +795,190 @@ If you cannot identify the part, still return the JSON with your best guess for 
             this.render();
 
         } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.showError(`Failed to add product: ${msg}`);
+            this.showError(`Failed to add product: ${this.formatError(err)}`);
+        }
+    }
+
+    // ─── Create Product Flow ────────────────────────────────────────────────
+
+    private renderCreateProduct(root: HTMLDivElement): void {
+        const id = this._identification;
+
+        // AI summary at top
+        if (id) {
+            const aiBox = document.createElement("div");
+            aiBox.className = "wpi-ai-info";
+            const label = document.createElement("div");
+            label.className = "wpi-ai-label";
+            label.textContent = "Creating from AI Identification";
+            aiBox.appendChild(label);
+            root.appendChild(aiBox);
+        }
+
+        const header = document.createElement("div");
+        header.className = "wpi-create-header";
+        header.textContent = "New Product Details";
+        root.appendChild(header);
+
+        // Product Name
+        const nameGroup = document.createElement("div");
+        nameGroup.className = "wpi-form-group";
+        const nameLabel = document.createElement("label");
+        nameLabel.className = "wpi-form-label";
+        nameLabel.textContent = "Product Name";
+        const nameInput = document.createElement("input");
+        nameInput.className = "wpi-form-input";
+        nameInput.id = "wpi-create-name";
+        nameInput.value = id ? [id.manufacturer, id.partType].filter(Boolean).join(" ") : "";
+        nameGroup.appendChild(nameLabel);
+        nameGroup.appendChild(nameInput);
+        root.appendChild(nameGroup);
+
+        // Product Number
+        const numGroup = document.createElement("div");
+        numGroup.className = "wpi-form-group";
+        const numLabel = document.createElement("label");
+        numLabel.className = "wpi-form-label";
+        numLabel.textContent = "Product Number";
+        const numInput = document.createElement("input");
+        numInput.className = "wpi-form-input";
+        numInput.id = "wpi-create-number";
+        numInput.value = id?.modelNumber ?? "";
+        numGroup.appendChild(numLabel);
+        numGroup.appendChild(numInput);
+        root.appendChild(numGroup);
+
+        // Description
+        const descGroup = document.createElement("div");
+        descGroup.className = "wpi-form-group";
+        const descLabel = document.createElement("label");
+        descLabel.className = "wpi-form-label";
+        descLabel.textContent = "Description";
+        const descInput = document.createElement("input");
+        descInput.className = "wpi-form-input";
+        descInput.id = "wpi-create-desc";
+        descInput.value = id?.description ?? "";
+        descGroup.appendChild(descLabel);
+        descGroup.appendChild(descInput);
+        root.appendChild(descGroup);
+
+        // Action buttons
+        const actions = document.createElement("div");
+        actions.className = "wpi-actions";
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.className = "wpi-btn-secondary";
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.addEventListener("click", () => {
+            this._state = "results";
+            this.render();
+        });
+        actions.appendChild(cancelBtn);
+
+        const createBtn = document.createElement("button");
+        createBtn.className = "wpi-btn-primary";
+        createBtn.textContent = "Create & Add to WO";
+        createBtn.addEventListener("click", () => {
+            const name = (this._container.querySelector("#wpi-create-name") as HTMLInputElement)?.value?.trim();
+            const number = (this._container.querySelector("#wpi-create-number") as HTMLInputElement)?.value?.trim();
+            const desc = (this._container.querySelector("#wpi-create-desc") as HTMLInputElement)?.value?.trim();
+            if (!name) {
+                nameInput.style.borderColor = "#FF3B30";
+                return;
+            }
+            this.createProductAndAdd(name, number, desc);
+        });
+        actions.appendChild(createBtn);
+
+        root.appendChild(actions);
+    }
+
+    private async createProductAndAdd(name: string, productNumber: string, description: string): Promise<void> {
+        const workOrderId = this.resolveEntityId();
+        if (!workOrderId) {
+            this.showError("Cannot determine Work Order ID. Open this control from a Work Order form.");
+            return;
+        }
+
+        this._state = "analyzing";
+        this.render();
+        const setStatus = (msg: string) => {
+            const el = this._container.querySelector(".wpi-analyzing-text");
+            if (el) el.textContent = msg;
+        };
+        setStatus("Creating product...");
+
+        try {
+            // Step 1: Get default UoM and its schedule
+            const uomResult = await this._context.webAPI.retrieveMultipleRecords(
+                "uom",
+                "?$select=uomid,name,_uomscheduleid_value&$top=1"
+            );
+            const defaultUomId = uomResult.entities[0]?.["uomid"] as string | undefined;
+            const scheduleId = uomResult.entities[0]?.["_uomscheduleid_value"] as string | undefined;
+
+            // Step 2: Get default price list
+            const priceListResult = await this._context.webAPI.retrieveMultipleRecords(
+                "pricelevel",
+                "?$select=pricelevelid,name&$filter=statecode eq 0&$top=1"
+            );
+            const priceListId = priceListResult.entities[0]?.["pricelevelid"] as string | undefined;
+
+            // Step 3: Create the product
+            const productRecord: Record<string, unknown> = {
+                "name": name,
+                "productnumber": productNumber || `AI-${Date.now()}`,
+                "description": description,
+                "producttypecode": 1, // Sales Inventory
+                "quantitydecimal": 2,
+                "msdyn_fieldserviceproducttype": 690970000, // Inventory
+            };
+            if (defaultUomId) {
+                productRecord["defaultuomid@odata.bind"] = `/uoms(${defaultUomId})`;
+            }
+            if (scheduleId) {
+                productRecord["defaultuomscheduleid@odata.bind"] = `/uomschedules(${scheduleId})`;
+            }
+
+            const createdProduct = await this._context.webAPI.createRecord("product", productRecord);
+            const newProductId = createdProduct.id.replace(/[{}]/g, "");
+
+            // Step 4: Add to price list (create price list item)
+            if (priceListId && defaultUomId) {
+                setStatus("Adding to price list...");
+                const priceListItem: Record<string, unknown> = {
+                    "pricelevelid@odata.bind": `/pricelevels(${priceListId})`,
+                    "productid@odata.bind": `/products(${newProductId})`,
+                    "uomid@odata.bind": `/uoms(${defaultUomId})`,
+                    "amount": 0, // Default price, can be updated later
+                    "pricingmethodcode": 1, // Currency Amount
+                };
+                await this._context.webAPI.createRecord("productpricelevel", priceListItem);
+            }
+
+            // Step 5: Create Work Order Product line item
+            setStatus("Adding to work order...");
+            const woProduct: Record<string, unknown> = {
+                "msdyn_workorder@odata.bind": `/msdyn_workorders(${workOrderId})`,
+                "msdyn_product@odata.bind": `/products(${newProductId})`,
+                "msdyn_quantity": 1,
+                "msdyn_linestatus": 690970000, // Estimated
+            };
+            if (defaultUomId) {
+                woProduct["msdyn_unit@odata.bind"] = `/uoms(${defaultUomId})`;
+            }
+            if (this._identification) {
+                woProduct["msdyn_description"] = `[AI Created] ${description}`;
+            }
+
+            await this._context.webAPI.createRecord("msdyn_workorderproduct", woProduct);
+
+            this._addedProductName = `${name} (new product created)`;
+            this._state = "confirm";
+            this.render();
+
+        } catch (err: unknown) {
+            this.showError(`Failed to create product: ${this.formatError(err)}`);
         }
     }
 
@@ -763,6 +993,16 @@ If you cannot identify the part, still return the JSON with your best guess for 
         this._errorMessage = "";
         this._addedProductName = "";
         this.render();
+    }
+
+    private formatError(err: unknown): string {
+        if (err instanceof Error) return err.message;
+        if (typeof err === "object" && err !== null) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const e = err as any;
+            return e.message || e.errorMessage || e.detail || JSON.stringify(err).substring(0, 300);
+        }
+        return String(err);
     }
 
     private showError(msg: string): void {
