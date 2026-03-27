@@ -547,16 +547,14 @@ export class WOPartsImageControl implements ComponentFramework.StandardControl<I
             actions.appendChild(addBtn);
         }
 
-        if (this._matches.length === 0) {
-            const createBtn = document.createElement("button");
-            createBtn.className = "wpi-btn-primary";
-            createBtn.textContent = "Create New Product";
-            createBtn.addEventListener("click", () => {
-                this._state = "create";
-                this.render();
-            });
-            actions.appendChild(createBtn);
-        }
+        const createBtn = document.createElement("button");
+        createBtn.className = this._matches.length > 0 ? "wpi-btn-secondary" : "wpi-btn-primary";
+        createBtn.textContent = "Create New";
+        createBtn.addEventListener("click", () => {
+            this._state = "create";
+            this.render();
+        });
+        actions.appendChild(createBtn);
 
         root.appendChild(actions);
     }
